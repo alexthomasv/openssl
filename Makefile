@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------------------
 # 1.  Configuration – adjust paths / flags if needed
 # ---------------------------------------------------------------------------
-SMACK_FLAGS  := --pthread --verifier boogie --no-verify
+SMACK_FLAGS  := --entry-points tls_handshake_wrapper --pthread --verifier boogie --no-verify
 CC           := clang
 LLVM_LINK    := llvm-link
 OPT          := opt
@@ -845,12 +845,11 @@ BUFFER_SRC := \
     crypto/buffer/buffer.c
 
 # All provider-side .c files that correspond to your list of *.o objects
-PROVIDER_ALL_SRC := \
+PROVIDER_CORE_SRC := \
     providers/baseprov.c \
     providers/defltprov.c \
     providers/nullprov.c \
     providers/prov_running.c \
-    providers/common/der/der_rsa_sig.c \
     providers/common/bio_prov.c \
     providers/common/capabilities.c \
     providers/common/digest_to_nid.c \
@@ -858,8 +857,26 @@ PROVIDER_ALL_SRC := \
     providers/common/provider_util.c \
     providers/common/securitycheck.c \
     providers/common/securitycheck_default.c \
-    providers/implementations/asymciphers/rsa_enc.c \
-    providers/implementations/ciphers/cipher_aes.c \
+    providers/common/provider_ctx.c \
+    providers/common/provider_err.c
+
+PROVIDER_DER_SRC := \
+    providers/common/der/der_rsa_sig.c \
+    providers/common/der/der_digests_gen.c \
+    providers/common/der/der_ec_gen.c \
+    providers/common/der/der_ec_key.c \
+    providers/common/der/der_ec_sig.c \
+    providers/common/der/der_ecx_gen.c \
+    providers/common/der/der_ecx_key.c \
+    providers/common/der/der_ml_dsa_gen.c \
+    providers/common/der/der_ml_dsa_key.c \
+    providers/common/der/der_rsa_gen.c \
+    providers/common/der/der_rsa_key.c \
+    providers/common/der/der_slh_dsa_gen.c \
+    providers/common/der/der_slh_dsa_key.c \
+    providers/common/der/der_wrap_gen.c
+
+CIPHER_AES_SRCS := \
     providers/implementations/ciphers/cipher_aes_cbc_hmac_sha.c \
     providers/implementations/ciphers/cipher_aes_cbc_hmac_sha1_etm_hw.c \
     providers/implementations/ciphers/cipher_aes_cbc_hmac_sha1_hw.c \
@@ -868,40 +885,128 @@ PROVIDER_ALL_SRC := \
     providers/implementations/ciphers/cipher_aes_cbc_hmac_sha512_etm_hw.c \
     providers/implementations/ciphers/cipher_aes_cbc_hmac_sha_etm.c \
     providers/implementations/ciphers/cipher_aes_ccm.c \
-    providers/implementations/ciphers/cipher_aes_ccm_hw.c \
     providers/implementations/ciphers/cipher_aes_gcm.c \
-    providers/implementations/ciphers/cipher_aes_gcm_hw.c \
-    providers/implementations/ciphers/cipher_aes_hw.c \
     providers/implementations/ciphers/cipher_aes_wrp.c \
     providers/implementations/ciphers/cipher_aes_xts.c \
     providers/implementations/ciphers/cipher_aes_xts_fips.c \
-    providers/implementations/ciphers/cipher_aes_xts_hw.c \
+    # providers/implementations/ciphers/cipher_aes_ccm_hw.c \
+    # providers/implementations/ciphers/cipher_aes_gcm_hw.c \
+    # providers/implementations/ciphers/cipher_aes_hw.c \
+    # providers/implementations/ciphers/cipher_aes_xts_hw.c \
+    # providers/implementations/ciphers/cipher_aes.c \
+
+CIPHER_ARIA_SRCS := \
     providers/implementations/ciphers/cipher_aria.c \
     providers/implementations/ciphers/cipher_aria_ccm.c \
     providers/implementations/ciphers/cipher_aria_ccm_hw.c \
     providers/implementations/ciphers/cipher_aria_gcm.c \
     providers/implementations/ciphers/cipher_aria_gcm_hw.c \
-    providers/implementations/ciphers/cipher_aria_hw.c \
+    providers/implementations/ciphers/cipher_aria_hw.c
+
+CIPHER_CAMELLIA_SRCS := \
     providers/implementations/ciphers/cipher_camellia.c \
-    providers/implementations/ciphers/cipher_camellia_hw.c \
+    providers/implementations/ciphers/cipher_camellia_hw.c
+
+CIPHER_CHACHA_SRCS := \
     providers/implementations/ciphers/cipher_chacha20.c \
     providers/implementations/ciphers/cipher_chacha20_hw.c \
     providers/implementations/ciphers/cipher_chacha20_poly1305.c \
-    providers/implementations/ciphers/cipher_chacha20_poly1305_hw.c \
-    providers/implementations/ciphers/cipher_cts.c \
-    providers/implementations/ciphers/cipher_null.c \
+    providers/implementations/ciphers/cipher_chacha20_poly1305_hw.c
+
+CIPHER_TDES_SRCS := \
     providers/implementations/ciphers/cipher_tdes.c \
     providers/implementations/ciphers/cipher_tdes_common.c \
     providers/implementations/ciphers/cipher_tdes_default.c \
     providers/implementations/ciphers/cipher_tdes_default_hw.c \
     providers/implementations/ciphers/cipher_tdes_hw.c \
     providers/implementations/ciphers/cipher_tdes_wrap.c \
-    providers/implementations/ciphers/cipher_tdes_wrap_hw.c \
+    providers/implementations/ciphers/cipher_tdes_wrap_hw.c
+
+CIPHER_MISC_SRCS := \
+    providers/implementations/ciphers/cipher_cts.c \
+    providers/implementations/ciphers/cipher_null.c
+
+CIPHERCOMMON_SRCS := \
+    providers/implementations/ciphers/ciphercommon.c \
+    providers/implementations/ciphers/ciphercommon_block.c \
+    providers/implementations/ciphers/ciphercommon_ccm.c \
+    providers/implementations/ciphers/ciphercommon_ccm_hw.c \
+    providers/implementations/ciphers/ciphercommon_gcm.c \
+    providers/implementations/ciphers/ciphercommon_gcm_hw.c \
+    providers/implementations/ciphers/ciphercommon_hw.c \
+    providers/implementations/digests/digestcommon.c
+
+ASYMCIPHER_SRCS := \
+    providers/implementations/asymciphers/rsa_enc.c
+
+CIPHER_ALL_SRCS := \
+    $(CIPHER_ARIA_SRCS) \
+    $(CIPHER_CAMELLIA_SRCS) \
+    $(CIPHER_CHACHA_SRCS) \
+    $(CIPHER_TDES_SRCS) \
+    $(CIPHER_MISC_SRCS) \
+    $(CIPHERCOMMON_SRCS) \
+    $(CIPHER_AES_SRCS) \
+
+PROVIDER_DIGEST_SRC := \
     providers/implementations/digests/md5_prov.c \
     providers/implementations/digests/md5_sha1_prov.c \
     providers/implementations/digests/null_prov.c \
     providers/implementations/digests/sha2_prov.c \
-    providers/implementations/digests/sha3_prov.c \
+    providers/implementations/digests/sha3_prov.c
+
+PROVIDER_MAC_SRC := \
+    providers/implementations/macs/gmac_prov.c \
+    providers/implementations/macs/hmac_prov.c \
+    providers/implementations/macs/kmac_prov.c \
+    providers/implementations/macs/poly1305_prov.c
+
+PROVIDER_KDF_SRC := \
+    providers/implementations/kdfs/argon2.c \
+    providers/implementations/kdfs/hkdf.c \
+    providers/implementations/kdfs/hmacdrbg_kdf.c \
+    providers/implementations/kdfs/kbkdf.c \
+    providers/implementations/kdfs/krb5kdf.c \
+    providers/implementations/kdfs/pbkdf2.c \
+    providers/implementations/kdfs/pbkdf2_fips.c \
+    providers/implementations/kdfs/pkcs12kdf.c \
+    providers/implementations/kdfs/scrypt.c \
+    providers/implementations/kdfs/sshkdf.c \
+    providers/implementations/kdfs/sskdf.c \
+    providers/implementations/kdfs/tls1_prf.c \
+    providers/implementations/kdfs/x942kdf.c
+
+PROVIDER_KEM_SRC := \
+    providers/implementations/kem/ec_kem.c \
+    providers/implementations/kem/ecx_kem.c \
+    providers/implementations/kem/kem_util.c \
+    providers/implementations/kem/ml_kem_kem.c \
+    providers/implementations/kem/mlx_kem.c \
+    providers/implementations/kem/rsa_kem.c
+
+PROVIDER_KEYMGMT_SRC := \
+    providers/implementations/keymgmt/dh_kmgmt.c \
+    providers/implementations/keymgmt/ec_kmgmt.c \
+    providers/implementations/keymgmt/ecx_kmgmt.c \
+    providers/implementations/keymgmt/kdf_legacy_kmgmt.c \
+    providers/implementations/keymgmt/mac_legacy_kmgmt.c \
+    providers/implementations/keymgmt/ml_dsa_kmgmt.c \
+    providers/implementations/keymgmt/ml_kem_kmgmt.c \
+    providers/implementations/keymgmt/mlx_kmgmt.c \
+    providers/implementations/keymgmt/rsa_kmgmt.c \
+    providers/implementations/keymgmt/slh_dsa_kmgmt.c
+
+PROVIDER_EXCHANGE_SRC := \
+    providers/implementations/exchange/dh_exch.c \
+    providers/implementations/exchange/ecdh_exch.c \
+    providers/implementations/exchange/ecx_exch.c \
+    providers/implementations/exchange/kdf_exch.c
+
+PROVIDER_SKEYMGMT_SRC := \
+    providers/implementations/skeymgmt/aes_skmgmt.c \
+    providers/implementations/skeymgmt/generic.c
+
+PROVIDER_ENCODER_SRC := \
     providers/implementations/encode_decode/decode_der2key.c \
     providers/implementations/encode_decode/decode_epki2pki.c \
     providers/implementations/encode_decode/decode_msblob2key.c \
@@ -915,44 +1020,17 @@ PROVIDER_ALL_SRC := \
     providers/implementations/encode_decode/endecoder_common.c \
     providers/implementations/encode_decode/ml_common_codecs.c \
     providers/implementations/encode_decode/ml_dsa_codecs.c \
-    providers/implementations/encode_decode/ml_kem_codecs.c \
-    providers/implementations/exchange/dh_exch.c \
-    providers/implementations/exchange/ecdh_exch.c \
-    providers/implementations/exchange/ecx_exch.c \
-    providers/implementations/exchange/kdf_exch.c \
-    providers/implementations/kdfs/argon2.c \
-    providers/implementations/kdfs/hkdf.c \
-    providers/implementations/kdfs/hmacdrbg_kdf.c \
-    providers/implementations/kdfs/kbkdf.c \
-    providers/implementations/kdfs/krb5kdf.c \
-    providers/implementations/kdfs/pbkdf2.c \
-    providers/implementations/kdfs/pbkdf2_fips.c \
-    providers/implementations/kdfs/pkcs12kdf.c \
-    providers/implementations/kdfs/scrypt.c \
-    providers/implementations/kdfs/sshkdf.c \
-    providers/implementations/kdfs/sskdf.c \
-    providers/implementations/kdfs/tls1_prf.c \
-    providers/implementations/kdfs/x942kdf.c \
-    providers/implementations/kem/ec_kem.c \
-    providers/implementations/kem/ecx_kem.c \
-    providers/implementations/kem/kem_util.c \
-    providers/implementations/kem/ml_kem_kem.c \
-    providers/implementations/kem/mlx_kem.c \
-    providers/implementations/kem/rsa_kem.c \
-    providers/implementations/keymgmt/dh_kmgmt.c \
-    providers/implementations/keymgmt/ec_kmgmt.c \
-    providers/implementations/keymgmt/ecx_kmgmt.c \
-    providers/implementations/keymgmt/kdf_legacy_kmgmt.c \
-    providers/implementations/keymgmt/mac_legacy_kmgmt.c \
-    providers/implementations/keymgmt/ml_dsa_kmgmt.c \
-    providers/implementations/keymgmt/ml_kem_kmgmt.c \
-    providers/implementations/keymgmt/mlx_kmgmt.c \
-    providers/implementations/keymgmt/rsa_kmgmt.c \
-    providers/implementations/keymgmt/slh_dsa_kmgmt.c \
-    providers/implementations/macs/gmac_prov.c \
-    providers/implementations/macs/hmac_prov.c \
-    providers/implementations/macs/kmac_prov.c \
-    providers/implementations/macs/poly1305_prov.c \
+    providers/implementations/encode_decode/ml_kem_codecs.c
+
+PROVIDER_SIGNATURE_SRC := \
+    providers/implementations/signature/ecdsa_sig.c \
+    providers/implementations/signature/eddsa_sig.c \
+    providers/implementations/signature/mac_legacy_sig.c \
+    providers/implementations/signature/ml_dsa_sig.c \
+    providers/implementations/signature/rsa_sig.c \
+    providers/implementations/signature/slh_dsa_sig.c
+
+PROVIDER_RANDS_SRC := \
     providers/implementations/rands/drbg.c \
     providers/implementations/rands/drbg_ctr.c \
     providers/implementations/rands/drbg_hash.c \
@@ -963,42 +1041,32 @@ PROVIDER_ALL_SRC := \
     providers/implementations/rands/seeding/rand_cpu_x86.c \
     providers/implementations/rands/seeding/rand_tsc.c \
     providers/implementations/rands/seeding/rand_unix.c \
-    providers/implementations/rands/seeding/rand_win.c \
-    providers/implementations/signature/ecdsa_sig.c \
-    providers/implementations/signature/eddsa_sig.c \
-    providers/implementations/signature/mac_legacy_sig.c \
-    providers/implementations/signature/ml_dsa_sig.c \
-    providers/implementations/signature/rsa_sig.c \
-    providers/implementations/signature/slh_dsa_sig.c \
-    providers/implementations/skeymgmt/aes_skmgmt.c \
-    providers/implementations/skeymgmt/generic.c \
+    providers/implementations/rands/seeding/rand_win.c
+
+PROVIDER_STOREMGMT_SRC := \
     providers/implementations/storemgmt/file_store.c \
-    providers/implementations/storemgmt/file_store_any2obj.c \
+    providers/implementations/storemgmt/file_store_any2obj.c
+
+PROVIDER_SSL_SRC := \
     ssl/record/methods/ssl3_cbc.c \
-    providers/common/der/der_digests_gen.c \
-    providers/common/der/der_ec_gen.c \
-    providers/common/der/der_ec_key.c \
-    providers/common/der/der_ec_sig.c \
-    providers/common/der/der_ecx_gen.c \
-    providers/common/der/der_ecx_key.c \
-    providers/common/der/der_ml_dsa_gen.c \
-    providers/common/der/der_ml_dsa_key.c \
-    providers/common/der/der_rsa_gen.c \
-    providers/common/der/der_rsa_key.c \
-    providers/common/der/der_slh_dsa_gen.c \
-    providers/common/der/der_slh_dsa_key.c \
-    providers/common/der/der_wrap_gen.c \
-    providers/common/provider_ctx.c \
-    providers/common/provider_err.c \
-    providers/implementations/ciphers/ciphercommon.c \
-    providers/implementations/ciphers/ciphercommon_block.c \
-    providers/implementations/ciphers/ciphercommon_ccm.c \
-    providers/implementations/ciphers/ciphercommon_ccm_hw.c \
-    providers/implementations/ciphers/ciphercommon_gcm.c \
-    providers/implementations/ciphers/ciphercommon_gcm_hw.c \
-    providers/implementations/ciphers/ciphercommon_hw.c \
-    providers/implementations/digests/digestcommon.c \
     ssl/record/methods/tls_pad.c
+
+PROVIDER_ALL_SRC := \
+    $(PROVIDER_CORE_SRC) \
+    $(PROVIDER_DER_SRC) \
+    $(PROVIDER_DIGEST_SRC) \
+    $(PROVIDER_MAC_SRC) \
+    $(PROVIDER_KDF_SRC) \
+    $(PROVIDER_KEM_SRC) \
+    $(PROVIDER_CIPHER_ALL_SRCS) \
+    $(PROVIDER_KEYMGMT_SRC) \
+    $(PROVIDER_EXCHANGE_SRC) \
+    $(PROVIDER_SKEYMGMT_SRC) \
+    $(PROVIDER_ENCODER_SRC) \
+    $(PROVIDER_SIGNATURE_SRC) \
+    $(PROVIDER_RANDS_SRC) \
+    $(PROVIDER_STOREMGMT_SRC) \
+    $(PROVIDER_SSL_SRC)
 
 HTTP_SRC := crypto/http/http_lib.c
 ARIA_SRC := crypto/aria/aria.c
@@ -1062,7 +1130,6 @@ LIBCRYPTO_SRC := $(BIO_SRC) \
               $(FFC_SRC) \
               $(CAMELLIA_SRC) \
               $(CHACHA_SRC) \
-              $(CONF_SRC) \
               $(BUFFER_SRC) \
               $(IMPLEMENTATION_RANDS_SRC) \
               $(DER_COMMON_SRC) \
@@ -1070,10 +1137,13 @@ LIBCRYPTO_SRC := $(BIO_SRC) \
               $(PROV_COMMON_DEFAULT_SRC) \
               $(HASHTABLE_SRC) \
               $(ARIA_SRC) \
-              $(PROVIDER_ALL_SRC) \
               $(ML_DSA_SRC) \
               $(HPKE_SRC) \
-              $(ML_KEM_SRC)
+              $(ML_KEM_SRC) \
+              $(CONF_SRC) \
+              $(PROVIDER_ALL_SRC) \
+              $(ASYMCIPHER_SRCS) \
+              $(CIPHER_ALL_SRCS) \
 
 WRAPPER      := handshake_wrapper.c          # your driver that calls SSL_do_handshake
 
@@ -1086,18 +1156,18 @@ HANDSHAKE_BC := handshake.bc
 # ---------------------------------------------------------------------------
 all: handshake
 
-handshake: $(LIBSSL_SRC) $(LIBCRYPTO_SRC)
-	$(SMACK) $(SMACK_FLAGS) --clang-options="-I. -Iinclude" main.c $(LIBSSL_SRC) $(LIBCRYPTO_SRC) -bpl handshake.bpl
-	
-
 APP_FLAGS = -DOPENSSLDIR=\"/tmp/openssl\" \
                    -DENGINESDIR=\"/tmp/openssl/engines\" \
                    -DMODULESDIR=\"/tmp/openssl/modules\"
 
 INCLUDE_DIRS = -I. -Iinclude -Iproviders/common/include -Iproviders/implementations/include -Iproviders/implementations/include -Iproviders/common/include -Iproviders/fips/include
 
+
+handshake: $(LIBSSL_SRC) $(LIBCRYPTO_SRC)
+	$(SMACK) $(SMACK_FLAGS) --clang-options="$(INCLUDE_DIRS) $(APP_FLAGS) -D__have_pthread_attr_t -D_POSIX_TIMERS=0" main.c $(LIBSSL_SRC) $(LIBCRYPTO_SRC) -bpl handshake.bpl
+	
 handshake_native: $(LIBSSL_SRC) $(LIBCRYPTO_SRC)
-	gcc -DTEST -DCOMPILE $(APP_FLAGS) $(INCLUDE_DIRS) main.c $(LIBSSL_SRC) $(LIBCRYPTO_SRC) -o handshake
+	gcc -DTEST -DCOMPILE $(APP_FLAGS) $(INCLUDE_DIRS) main_gcc.c $(LIBSSL_SRC) $(LIBCRYPTO_SRC) -o handshake
 
 # ssl/libssl-lib-pqueue.o: ssl/pqueue.c
 # 	$(SMACK) --clang-options="-I. -Iinclude" ssl/pqueue.c $(SMACK_FLAGS)  -bpl ssl/libssl-lib-pqueue.bpl
