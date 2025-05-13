@@ -21,8 +21,12 @@
     fn_set_enc_key(key, keylen * 8, &actx->ccm.ks.ks);                         \
     CRYPTO_ccm128_init(&ctx->ccm_ctx, ctx->m, ctx->l, &actx->ccm.ks.ks,        \
                        (block128_f)fn_blk);                                    \
-    ctx->str = ctx->enc ? (ccm128_f)fn_ccm_enc : (ccm128_f)fn_ccm_dec;         \
+    ctx->str = (ccm128_f)fn_ccm_enc;                                           \ 
     ctx->key_set = 1;
+
+// Original code, but for some reason DSA analysis doesn't work with it
+// Plus, either way ctx->str becomes NULL
+// ctx->str = ctx->enc ? (ccm128_f)fn_ccm_enc : (ccm128_f)fn_ccm_dec;
 
 static int ccm_generic_aes_initkey(PROV_CCM_CTX *ctx, const unsigned char *key,
                                    size_t keylen)

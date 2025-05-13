@@ -57,11 +57,11 @@ void OSSL_sleep(uint64_t millis)
 #  include <time.h>
 void OSSL_sleep(uint64_t millis)
 {
-    struct timespec ts;
+    // struct timespec ts;
 
-    ts.tv_sec = (long int) (millis / 1000);
-    ts.tv_nsec = (long int) (millis % 1000) * 1000000ul;
-    nanosleep(&ts, NULL);
+    // ts.tv_sec = (long int) (millis / 1000);
+    // ts.tv_nsec = (long int) (millis % 1000) * 1000000ul;
+    // nanosleep(&ts, NULL);
 }
 
 # endif

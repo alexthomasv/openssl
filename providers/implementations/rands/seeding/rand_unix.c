@@ -82,17 +82,17 @@ static uint64_t get_time_stamp(void);
 # undef OSSL_POSIX_TIMER_OKAY
 /* On some systems, _POSIX_TIMERS is defined but empty.
  * Subtracting by 0 when comparing avoids an error in this case. */
-# if defined(_POSIX_TIMERS) && _POSIX_TIMERS -0 > 0
-#  if defined(__GLIBC__)
-#   if defined(__GLIBC_PREREQ)
-#    if __GLIBC_PREREQ(2, 17)
-#     define OSSL_POSIX_TIMER_OKAY
-#    endif
-#   endif
-#  else
-#   define OSSL_POSIX_TIMER_OKAY
-#  endif
-# endif
+// # if defined(_POSIX_TIMERS) && _POSIX_TIMERS -0 > 0
+// #  if defined(__GLIBC__)
+// #   if defined(__GLIBC_PREREQ)
+// #    if __GLIBC_PREREQ(2, 17)
+// #     define OSSL_POSIX_TIMER_OKAY
+// #    endif
+// #   endif
+// #  else
+// #   define OSSL_POSIX_TIMER_OKAY
+// #  endif
+// # endif
 #endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS))
           || defined(__DJGPP__) */
 

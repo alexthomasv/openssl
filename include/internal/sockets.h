@@ -83,7 +83,7 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 #  endif
 
 #  ifndef NO_SYS_PARAM_H
-#   include <sys/param.h>
+// #   include <sys/param.h>
 #  endif
 #  ifdef OPENSSL_SYS_VXWORKS
 #   include <time.h>

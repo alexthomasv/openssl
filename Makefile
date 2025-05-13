@@ -889,11 +889,11 @@ CIPHER_AES_SRCS := \
     providers/implementations/ciphers/cipher_aes_wrp.c \
     providers/implementations/ciphers/cipher_aes_xts.c \
     providers/implementations/ciphers/cipher_aes_xts_fips.c \
-    # providers/implementations/ciphers/cipher_aes_ccm_hw.c \
-    # providers/implementations/ciphers/cipher_aes_gcm_hw.c \
-    # providers/implementations/ciphers/cipher_aes_hw.c \
-    # providers/implementations/ciphers/cipher_aes_xts_hw.c \
-    # providers/implementations/ciphers/cipher_aes.c \
+    providers/implementations/ciphers/cipher_aes_xts_hw.c \
+    providers/implementations/ciphers/cipher_aes_ccm_hw.c \
+    providers/implementations/ciphers/cipher_aes_gcm_hw.c \
+    providers/implementations/ciphers/cipher_aes_hw.c \
+    providers/implementations/ciphers/cipher_aes.c \
 
 CIPHER_ARIA_SRCS := \
     providers/implementations/ciphers/cipher_aria.c \
@@ -1162,9 +1162,31 @@ APP_FLAGS = -DOPENSSLDIR=\"/tmp/openssl\" \
 
 INCLUDE_DIRS = -I. -Iinclude -Iproviders/common/include -Iproviders/implementations/include -Iproviders/implementations/include -Iproviders/common/include -Iproviders/fips/include
 
+LLVM_OPT_FLAGS = -mem2reg -globaldce -always-inline -inline -inline-threshold=1000000 -adce -globalopt
 
-handshake: $(LIBSSL_SRC) $(LIBCRYPTO_SRC)
-	$(SMACK) $(SMACK_FLAGS) --clang-options="$(INCLUDE_DIRS) $(APP_FLAGS) -D__have_pthread_attr_t -D_POSIX_TIMERS=0" main.c $(LIBSSL_SRC) $(LIBCRYPTO_SRC) -bpl handshake.bpl
+libssl.bc: $(LIBSSL_SRC)
+	$(SMACK) $(SMACK_FLAGS) --clang-options="$(INCLUDE_DIRS) $(APP_FLAGS) -D__have_pthread_attr_t -D_POSIX_TIMERS=0" $(LIBSSL_SRC) -bc libssl.bc
+
+libssl_opt.bc: libssl.bc
+	opt-12 $(LLVM_OPT_FLAGS) libssl.bc -o libssl_opt.bc
+
+libcrypto.bc: $(LIBCRYPTO_SRC)
+	$(SMACK) $(SMACK_FLAGS) --clang-options="$(INCLUDE_DIRS) $(APP_FLAGS) -D__have_pthread_attr_t -D_POSIX_TIMERS=0" $(LIBCRYPTO_SRC) -bc libcrypto.bc
+
+libcrypto_opt.bc: libcrypto.bc
+	opt-12 -passes="default<O3>,always-inline,inline,adce,globalopt,globaldce" -inline-threshold=1000000 libcrypto.bc -o libcrypto_opt.bc
+
+handshake_wrapper.bc: main.c
+	$(SMACK) $(SMACK_FLAGS) --clang-options="$(INCLUDE_DIRS) $(APP_FLAGS) -D__have_pthread_attr_t -D_POSIX_TIMERS=0" main.c -bc handshake_wrapper.bc
+
+test.bc: libssl_opt.bc libcrypto_opt.bc handshake_wrapper.bc
+	llvm-link-12 libssl_opt.bc libcrypto_opt.bc handshake_wrapper.bc -o test.bc
+
+test_opt.bc: test.bc
+	opt-12 $(LLVM_OPT_FLAGS) -internalize -internalize-public-api-list=tls_handshake_wrapper $(LLVM_OPT_FLAGS) test.bc -o test_opt.bc
+
+handshake: test_opt.bc
+	$(SMACK) $(SMACK_FLAGS) test_opt.bc -bpl handshake.bpl
 	
 handshake_native: $(LIBSSL_SRC) $(LIBCRYPTO_SRC)
 	gcc -DTEST -DCOMPILE $(APP_FLAGS) $(INCLUDE_DIRS) main_gcc.c $(LIBSSL_SRC) $(LIBCRYPTO_SRC) -o handshake
